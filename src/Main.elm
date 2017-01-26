@@ -1,6 +1,7 @@
 port module Main exposing (..)
 
 import Html exposing (..)
+import Html.Attributes exposing (..)
 import Boys
 import Girls
 import Parents
@@ -36,7 +37,7 @@ mainModelInit =
 
 
 
--- Initialization boilerplate
+-- Initialization boilerplate.
 
 
 init : ( Model, Cmd Msg )
@@ -74,7 +75,7 @@ init =
 
 
 
--- Msg and Memo just wrap the module Msgs and Memos
+-- Msg and Memo just wrap the module Msgs and Memos.
 
 
 type Msg
@@ -90,14 +91,38 @@ type Memo
 
 
 
--- Update the state
+-- If the memos result in too many Msgs, it's a memo blizzard and we should give up.
+-- In a production application this might be set to 50 or 100.
+
+
+memoBlizzardLimit : Int
+memoBlizzardLimit =
+    10
+
+
+
+-- Update the state. We use a wrapper to reset the msgs trace once per
+-- Cmd Msg, which lets us check for memo blizzards.
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
+        newModel =
+            { model | msgs = [] }
+    in
+        updateWithMemos msg newModel
+
+
+
+-- The actual update function
+
+
+updateWithMemos : Msg -> Model -> ( Model, Cmd Msg )
+updateWithMemos msg model =
+    let
         -- Actual update is done in the let block; result is a tuple of the new model,
-        -- Cmd Msgs, and any Memos that need to be routed. The Main.elm doesn't actually
+        -- Cmd Msgs, and any Memos that need to be routed. Main.elm doesn't actually
         -- do any state computation, it lets the modules handle that. So a module's
         -- contribution to the state is only changed in that module!
         ( newModel, cmds, memos ) =
@@ -136,25 +161,20 @@ update msg model =
                         )
     in
         let
-            -- Route the memos, generating Msgs
+            -- Route the memos, generating Msgs.
             msgs =
                 List.concatMap (routeMemos model) memos
 
-            -- Set the msgs to just the Msg that triggered this update
-            modelWithMsg =
-                { newModel | msgs = [ msg ] }
-
-            -- Apply the messages to the model, collecting any Cmds, and also
-            -- adding any generated Msgs to msgs for debugging purposes.
+            -- Deliver the messages.
             finalModel =
-                List.foldl deliverMsgs ( modelWithMsg, cmds ) msgs
+                List.foldl deliverMsgs ( newModel, cmds ) msgs
         in
             finalModel
 
 
 
 -- Memo filters can examine the current model and decide whether or not
--- the memo will be forwarded
+-- the memo will be forwarded.
 
 
 type alias MemoFilter =
@@ -162,7 +182,7 @@ type alias MemoFilter =
 
 
 
--- Handy "always true" MemoFilter
+-- Handy "always true" MemoFilter.
 
 
 alwaysForward : MemoFilter
@@ -179,10 +199,16 @@ type alias MemoSender =
     ( Memo, Msg, MemoFilter )
 
 
+
+-- Note that the final entry in this list will generate an infinite recursion,
+-- and so will trigger our "blizzard" checking.
+
+
 memoSenders : List MemoSender
 memoSenders =
     [ ( FromBoys Boys.NewBoy, GirlsMsg Girls.AddBrother, alwaysForward )
     , ( FromGirls Girls.NewGirl, BoysMsg Boys.AddSister, alwaysForward )
+    , ( FromParents Parents.MakeBlizzard, ParentsMsg Parents.TestBlizzard, alwaysForward )
     ]
 
 
@@ -224,33 +250,33 @@ routeMemos model memo =
 
 
 
--- Check a MemoSender and return a Msg wrapped in a list if we get a match
+-- Check a MemoSender and return a Msg wrapped in a list if we get a match.
 
 
 validSender : Model -> Memo -> MemoSender -> List Msg
 validSender model memo memosender =
     let
-        ( sender, msgs, condition ) =
+        ( sender, msg, condition ) =
             memosender
     in
         if memo == sender && (condition model) then
-            [ msgs ]
+            [ msg ]
         else
             []
 
 
 
--- Check a MemoSubscriber and return a Msg wrapped in a list if we get a match
+-- Check a MemoSubscriber and return a Msg wrapped in a list if we get a match.
 
 
 validSubscriber : Model -> Memo -> MemoSubscriber -> List Msg
 validSubscriber model memo memosubscriber =
     let
-        ( msgs, subscriber, condition ) =
+        ( msg, subscriber, condition ) =
             memosubscriber
     in
         if memo == subscriber && (condition model) then
-            [ msgs ]
+            [ msg ]
         else
             []
 
@@ -262,28 +288,44 @@ validSubscriber model memo memosubscriber =
 
 deliverMsgs : Msg -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 deliverMsgs msg ( model, cmd ) =
-    let
-        -- Save any messages that we've already handled
-        olderMsgs =
-            model.msgs
+    if List.length model.msgs > memoBlizzardLimit then
+        ( model, cmd )
+    else
+        let
+            modelWithMsg =
+                { model | msgs = List.append model.msgs [ msg ] }
 
-        -- Update the model
-        ( newModel, newCmd ) =
-            update msg model
+            -- Update the model
+            ( newModel, newCmd ) =
+                updateWithMemos msg modelWithMsg
 
-        -- Reconstruct the complete list of messages (for debugging purposes)
-        newModelWithMsgs =
-            { newModel | msgs = List.concat [ olderMsgs, newModel.msgs ] }
-
-        -- Assemble any generated commands
-        allCmds =
-            Cmd.batch [ cmd, newCmd ]
-    in
-        ( newModelWithMsgs, allCmds )
+            -- Assemble any generated commands
+            allCmds =
+                Cmd.batch [ cmd, newCmd ]
+        in
+            ( newModel, allCmds )
 
 
 
 -- view
+
+
+mainView : Model -> Html Msg
+mainView model =
+    div [ class "main" ]
+        [ text
+            (let
+                l =
+                    List.length model.msgs
+             in
+                if l > memoBlizzardLimit then
+                    "Memo blizzard detected - check History!"
+                else if l > 0 then
+                    toString l ++ " memos handled"
+                else
+                    ""
+            )
+        ]
 
 
 view : Model -> Html Msg
@@ -295,6 +337,7 @@ view model =
             (Girls.view model.girls)
         , Html.map ParentsMsg
             (Parents.view model.parents)
+        , mainView model
         ]
 
 

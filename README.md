@@ -29,6 +29,9 @@ of which will be processed before the next Cmd Msg.
 * The order in which memos are processed is deterministic (and the list of msgs
 that are executed is saved in the application model for debugging purposes)
 
+* If too many memos stack up (due to an infinite recursion caused by incorrect
+routing, the router declares a "memo blizzard" and gives up
+
 ### Setup
 
 Run the following setup steps
@@ -49,6 +52,8 @@ Run the following setup steps
 refuse to acknowledge more than two children (due to conditional routing
 of the memos), but the boys and girls keep track of how many sisters and
 brothers they have.
+
+3. You can also generate a blizzard to see how that works.
 
 ### Credits
 
