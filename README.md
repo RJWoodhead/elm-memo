@@ -21,7 +21,8 @@ It is largely boilerplate.
 
 * Memo routing is simply and clearly defined in the Main module; a memo can be
 sent to multiple modules, or a recipient can subscribe to a memo. The model
-can be tested to decide whether to route a memo.
+can be tested to decide whether to route a memo, and custom routers can be
+defined to handle special cases (like Memos with parameters)
 
 * Memos are atomic; each Cmd Msg may end up triggering a cascade of memos, all
 of which will be processed before the next Cmd Msg.
@@ -53,7 +54,9 @@ refuse to acknowledge more than two children (due to conditional routing
 of the memos), but the boys and girls keep track of how many sisters and
 brothers they have.
 
-3. You can also generate a blizzard to see how that works.
+3. You can also generate a blizzard to see how that works (or more precisely,
+fails), and test a custom router and Memo with a parameter by adding
+quadruplet boys.
 
 ### Credits
 
