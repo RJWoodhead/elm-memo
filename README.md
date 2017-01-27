@@ -1,8 +1,8 @@
 # The Memo Metaphor
 
 This is my first attempt to make intermodule communication in Elm as simple and transparent
-as possible. That said, I know just enough to be very dangerous so this could be horribly
-wrong!
+as possible. That said, I know just enough about Elm to be dangerous to myself and everyone
+in my immediate vicinity, so this could be horribly wrong!
 
 The basic metaphor is that your app is like a large company, and each module is a department.
 
@@ -30,8 +30,8 @@ of which will be processed before the next Cmd Msg.
 * The order in which memos are processed is deterministic (and the list of msgs
 that are executed is saved in the application model for debugging purposes)
 
-* If too many memos stack up (due to an infinite recursion caused by incorrect
-routing, the router declares a "memo blizzard" and gives up
+* If the stack of memos gets too high (due to an infinite recursion caused by incorrect
+routing), the router declares a "memo blizzard" and gives up
 
 ### Setup
 

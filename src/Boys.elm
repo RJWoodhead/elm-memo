@@ -33,7 +33,7 @@ init =
 type Msg
     = Increment
     | Quads
-    | AddSister
+    | AddSister Int
 
 
 type Memo
@@ -57,8 +57,8 @@ update msg model =
             ( { model | count = model.count + 4 }, Cmd.none, [ NewBoy 4 ] )
 
         -- In response to a Girls.NewGirl Memo, we'll get an Boys.AddSister Msg
-        AddSister ->
-            ( { model | sisters = model.sisters + 1 }, Cmd.none, [] )
+        AddSister num ->
+            ( { model | sisters = model.sisters + num }, Cmd.none, [] )
 
 
 
