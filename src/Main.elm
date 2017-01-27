@@ -1,3 +1,6 @@
+-- The Memo Metaphor - trebor@animeigo.com
+
+
 port module Main exposing (..)
 
 import Html exposing (..)
@@ -191,7 +194,7 @@ alwaysForward model =
 
 
 
--- Two ways to route Memos, which can be combined. In the first, a
+-- Several ways to route Memos, which can be combined. In the first, a
 -- Memo triggers a Msg if the filter is True.
 
 
@@ -206,8 +209,7 @@ type alias MemoSender =
 
 memoSenders : List MemoSender
 memoSenders =
-    [ ( FromBoys Boys.NewBoy, GirlsMsg Girls.AddBrother, alwaysForward )
-    , ( FromGirls Girls.NewGirl, BoysMsg Boys.AddSister, alwaysForward )
+    [ ( FromGirls Girls.NewGirl, BoysMsg Boys.AddSister, alwaysForward )
     , ( FromParents Parents.MakeBlizzard, ParentsMsg Parents.TestBlizzard, alwaysForward )
     ]
 
@@ -225,13 +227,13 @@ type alias MemoSubscriber =
 memoSubscribers : List MemoSubscriber
 memoSubscribers =
     [ ( ParentsMsg Parents.AddDaughter, FromGirls Girls.NewGirl, (\m -> (m.parents.sons + m.parents.daughters) < 2) )
-    , ( ParentsMsg Parents.AddSon, FromBoys Boys.NewBoy, (\m -> (m.parents.sons + m.parents.daughters) < 2) )
     ]
 
 
 
--- The router is boilerplate; the order in which Msgs will be generated from Memos is
--- senders first, then subscribers, and in order they appear in the lists.
+-- The router generates Msgs from Memos in a deterministic manner; senders first, then
+-- subscribers, and then any Memos with parameters, which are special-cased in the function.
+-- Note that Memos can end up generating no Msgs at all.
 
 
 routeMemos : Model -> Memo -> List Msg
@@ -243,10 +245,47 @@ routeMemos model memo =
         subscribers =
             List.concatMap (validSubscriber model memo) memoSubscribers
 
+        -- Custom routers handle special cases, such as Memos that
+        -- have parameters. You could stuff all the special cases
+        -- into a single custom router but it may be cleaner to
+        -- have several smaller ones.
+        customRouters =
+            List.concat
+                [ boysRouter model memo
+                ]
+
         msgs =
-            List.concat [ senders, subscribers ]
+            List.concat [ senders, subscribers, customRouters ]
     in
         msgs
+
+
+
+-- Handle the NewBoy Memo keeping the limitation that the Parents, for some strange
+-- reason, don't want to admit to having lots of children! I admit this is a really
+-- dumb example.
+
+
+boysRouter : Model -> Memo -> List Msg
+boysRouter model memo =
+    case memo of
+        FromBoys (Boys.NewBoy n) ->
+            addBoys (model.parents.sons + model.parents.daughters) n
+
+        _ ->
+            []
+
+
+addBoys : Int -> Int -> List Msg
+addBoys kids n =
+    if n == 0 then
+        []
+    else
+        GirlsMsg Girls.AddBrother
+            :: if kids < 2 then
+                ParentsMsg Parents.AddSon :: addBoys (kids + 1) (n - 1)
+               else
+                addBoys kids (n - 1)
 
 
 
