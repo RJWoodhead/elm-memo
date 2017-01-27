@@ -16,12 +16,18 @@ import Parents
 -- you can debug the message passing.
 
 
+type alias MemoTrace =
+    { msg : Msg
+    , level : Int
+    }
+
+
 type alias Model =
     { boys : Boys.Model
     , girls : Girls.Model
     , parents : Parents.Model
     , main : MainModel
-    , msgs : List Msg
+    , msgs : List MemoTrace
     }
 
 
@@ -94,8 +100,9 @@ type Memo
 
 
 
--- If the memos result in too many Msgs, it's a memo blizzard and we should give up.
--- In a production application this might be set to 50 or 100.
+-- If the memos result in too great a nesting depth, then we probably have
+-- an inifinite recursion going on. So we set a limit on how deep we'll
+-- go before giving up
 
 
 memoBlizzardLimit : Int
@@ -113,16 +120,19 @@ update msg model =
     let
         newModel =
             { model | msgs = [] }
+
+        ( outputModel, outputMsg, level ) =
+            updateWithMemos msg newModel 0
     in
-        updateWithMemos msg newModel
+        ( outputModel, outputMsg )
 
 
 
 -- The actual update function
 
 
-updateWithMemos : Msg -> Model -> ( Model, Cmd Msg )
-updateWithMemos msg model =
+updateWithMemos : Msg -> Model -> Int -> ( Model, Cmd Msg, Int )
+updateWithMemos msg model level =
     let
         -- Actual update is done in the let block; result is a tuple of the new model,
         -- Cmd Msgs, and any Memos that need to be routed. Main.elm doesn't actually
@@ -170,7 +180,7 @@ updateWithMemos msg model =
 
             -- Deliver the messages.
             finalModel =
-                List.foldl deliverMsgs ( newModel, cmds ) msgs
+                List.foldl deliverMsgs ( newModel, cmds, level ) msgs
         in
             finalModel
 
@@ -325,24 +335,24 @@ validSubscriber model memo memosubscriber =
 -- Thanks to @jessta on Elm-slack for a key insight.
 
 
-deliverMsgs : Msg -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-deliverMsgs msg ( model, cmd ) =
-    if List.length model.msgs > memoBlizzardLimit then
-        ( model, cmd )
+deliverMsgs : Msg -> ( Model, Cmd Msg, Int ) -> ( Model, Cmd Msg, Int )
+deliverMsgs msg ( model, cmd, level ) =
+    if level > memoBlizzardLimit then
+        ( model, cmd, level )
     else
         let
             modelWithMsg =
-                { model | msgs = List.append model.msgs [ msg ] }
+                { model | msgs = List.append model.msgs [ MemoTrace msg level ] }
 
             -- Update the model
-            ( newModel, newCmd ) =
-                updateWithMemos msg modelWithMsg
+            ( newModel, newCmd, newLvl ) =
+                updateWithMemos msg modelWithMsg (level + 1)
 
             -- Assemble any generated commands
             allCmds =
                 Cmd.batch [ cmd, newCmd ]
         in
-            ( newModel, allCmds )
+            ( newModel, allCmds, level )
 
 
 
@@ -355,9 +365,9 @@ mainView model =
         [ text
             (let
                 l =
-                    List.length model.msgs
+                    List.foldl (\trace _ -> trace.level) 0 model.msgs
              in
-                if l > memoBlizzardLimit then
+                if l >= memoBlizzardLimit then
                     "Memo blizzard detected - check History!"
                 else if l > 0 then
                     toString l ++ " memos handled"
