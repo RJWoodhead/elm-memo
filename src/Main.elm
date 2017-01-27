@@ -178,7 +178,7 @@ updateWithMemos msg model level =
             msgs =
                 List.concatMap (routeMemos model) memos
 
-            -- Deliver the messages.
+            -- Deliver the messages (will call updateWithMemos recursively)
             finalModel =
                 List.foldl deliverMsgs ( newModel, cmds, level ) msgs
         in
@@ -213,13 +213,25 @@ type alias MemoSender =
 
 
 
+-- The Memo and Msg can have constant parameters (if defined in their union
+-- types), but you can't pass an arbitrary parameter from the Memo to the
+-- Msg using this method. To do that, you define a custom router.
+--
+-- In this example, the simple NewGirl memo triggers an AddSister 1 message.
+-- We could define MemoSenders that match Memos like NewBoy 1, NewBoy 2, etc.,
+-- instead of using a custom router, with the caveat that you have to take care
+-- to handle all the cases. And you can have multiple entries for the same
+-- Memo, so a memo can generate multiple Msgs.
+--
 -- Note that the final entry in this list will generate an infinite recursion,
 -- and so will trigger our "blizzard" checking.
 
 
 memoSenders : List MemoSender
 memoSenders =
-    [ ( FromGirls Girls.NewGirl, BoysMsg Boys.AddSister, alwaysForward )
+    [ ( FromGirls Girls.NewGirl, BoysMsg (Boys.AddSister 1), alwaysForward )
+    , ( FromGirls Girls.NewGirlTwins, BoysMsg (Boys.AddSister 1), alwaysForward )
+    , ( FromGirls Girls.NewGirlTwins, BoysMsg (Boys.AddSister 1), alwaysForward )
     , ( FromParents Parents.MakeBlizzard, ParentsMsg Parents.TestBlizzard, alwaysForward )
     ]
 
@@ -234,9 +246,18 @@ type alias MemoSubscriber =
     ( Msg, Memo, MemoFilter )
 
 
+
+-- One gotcha to be aware of; the MemoFilter is evaluated based on the state of the model when the memos are
+-- routed, not the state when they are actually delivered. Consider what happens if the Parents have one
+-- child and they naively subscribe to the NewGirlTwins message twice (as below). If they used the same
+-- MemoFilter, they'd end up with 3 children, which is more than they'll accept!
+
+
 memoSubscribers : List MemoSubscriber
 memoSubscribers =
     [ ( ParentsMsg Parents.AddDaughter, FromGirls Girls.NewGirl, (\m -> (m.parents.sons + m.parents.daughters) < 2) )
+    , ( ParentsMsg Parents.AddDaughter, FromGirls Girls.NewGirlTwins, (\m -> (m.parents.sons + m.parents.daughters) < 2) )
+    , ( ParentsMsg Parents.AddDaughter, FromGirls Girls.NewGirlTwins, (\m -> (m.parents.sons + m.parents.daughters) < 1) )
     ]
 
 

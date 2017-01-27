@@ -32,11 +32,13 @@ init =
 
 type Msg
     = Increment
+    | Twins
     | AddBrother
 
 
 type Memo
     = NewGirl
+    | NewGirlTwins
 
 
 
@@ -51,6 +53,9 @@ update msg model =
         -- so we send a NewGirl Memo
         Increment ->
             ( { model | count = model.count + 1 }, Cmd.none, [ NewGirl ] )
+
+        Twins ->
+            ( { model | count = model.count + 2 }, Cmd.none, [ NewGirlTwins ] )
 
         -- In response to a Boys.NewBoy Memo, we'll get an Girls.AddBrother Msg
         AddBrother ->
@@ -70,6 +75,8 @@ view model =
             ++ " brothers "
             |> text
         , button [ onClick Increment ] [ text "Add Girl" ]
+        , text " or "
+        , button [ onClick Twins ] [ text "Add Twin Girls" ]
         ]
 
 
