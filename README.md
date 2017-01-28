@@ -11,6 +11,9 @@ the workings of other departments, chaos would ensue. So instead, the department
 inter-departmental memos to keep each other apprised of what is going on, on a need-to-know
 basis.
 
+In the Memo Metaphor, Cmd Msgs are letters arriving from outside the company,
+and memos are internal discussions about how to respond to those letters.
+
 In the Memo metaphor:
 
 * Each module's state is only changed by the module itself. If another module
@@ -24,18 +27,18 @@ sent to multiple modules, or a recipient can subscribe to a memo. The model
 can be tested to decide whether to route a memo, and custom routers can be
 defined to handle special cases (like Memos with parameters)
 
-* Memos are atomic; each Cmd Msg may end up triggering a cascade of memos, all
-of which will be processed before the next Cmd Msg.
+* Memos are atomic; each Cmd Msg arriving at Main.elm's update function may end up
+triggering a cascade of memos, which in turn create new Msgs, all of which will be
+processed before the next Cmd Msg.
 
-* The order in which memos are processed is deterministic (and the list of msgs
-that are executed is saved in the application model for debugging purposes)
+* The order in which memos are processed is deterministic (and the list of Msgs
+that are processed is saved in the model for debugging purposes)
 
 * If the stack of memos gets too high (due to an infinite recursion caused by incorrect
-routing), the router declares a "memo blizzard" and gives up
+routing), the router declares a "memo blizzard" and gives up.
+
 
 ### Setup
-
-Run the following setup steps
 
 1. Run `npm install` to install the build process dependancies
 2. Run `npm install gulp -g` to install the gulp executable globally
@@ -53,6 +56,9 @@ Run the following setup steps
 refuse to acknowledge more than two children (due to conditional routing
 of the memos), but the boys and girls keep track of how many sisters and
 brothers they have.
+
+Note that each button handles its task in a different way, for purposes of
+illustration. There are explanatory notes in the code.
 
 3. You can also generate a blizzard to see how that works (or more precisely,
 fails), and test a custom router and Memo with a parameter by adding
